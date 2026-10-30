@@ -9,7 +9,9 @@ associated with neuronal vulnerability in Parkinson's disease?
 | File | What it does |
 |---|---|
 | `01_tyr_mao_feasibility.ipynb` | Finds substantia nigra DA nuclei by markers, checks how the CRN pipeline labelled them, measures TYR/MAO detection, builds donor-level pseudobulk, first PD vs control look |
-| `moma_utils.py` | Helpers: GCS discovery, lazy `.h5ad` reading (only the genes/nuclei needed), marker-based DA calling, donor pseudobulk |
+| `02_lowgene_simulation.ipynb` | Simulation study (synthetic data): detection vs depth, why HVG-filtered objects miss the panel, the QC/ambient trap, donor-level power for SN and LC capture scenarios, subtype contrasts, noise-amplification traps, GeoMx and bulk designs |
+| `sim/lowgene_sim.py` | The simulation code behind notebook 02 (`python sim/lowgene_sim.py [--fast]`); writes `sim/figures/*.png` and `sim/sim_results.csv`. GeoMx section calibrated to the public Edwards/Chatterton TH-mask object |
+| `moma_utils.py` | Helpers: GCS discovery, lazy `.h5ad` reading (only the genes/nuclei needed), CDE metadata join, marker-based DA calling, donor pseudobulk |
 | `requirements.txt` | Python packages |
 
 ## Running in Verily Workbench
