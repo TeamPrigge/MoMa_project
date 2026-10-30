@@ -1,0 +1,8 @@
+*.bak
+*.bak2
+*_RUN_*.ipynb
+__pycache__/
+.ipynb_checkpoints/
+moma_outputs/
+moma_data/
+*.h5ad

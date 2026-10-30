@@ -88,6 +88,16 @@ def find_files(paths: list[str], pattern: str) -> list[str]:
     return sorted(p for p in paths if rx.search(p))
 
 
+def pick_h5ad(paths):
+    """Best curated AnnData in a listing: final_adata > merged_adata_object; never preprocess/."""
+    h5ads = [p for p in paths if p.endswith(".h5ad") and "/preprocess/" not in p]
+    for pat in (r"\.final\.h5ad$", r"final_adata\.h5ad$", r"merged_cleaned_unfiltered\.h5ad$", r"merged_adata_object\.h5ad$"):
+        hits = find_files(h5ads, pat)
+        if hits:
+            return hits[0]
+    return None
+
+
 def gcs_size(path: str) -> str:
     """Human-readable size of a gs:// object or prefix."""
     out = subprocess.run(["gsutil", "du", "-sh", path], capture_output=True, text=True)
@@ -129,7 +139,10 @@ class LazyH5AD:
         if layer is None:
             return "X"
         if layer not in self.layers:
-            raise KeyError(f"layer '{layer}' not in file (have: {self.layers}).")
+            import warnings
+            warnings.warn(f"layer '{layer}' not in file (have: {self.layers}); using X. "
+                          "Check that X holds raw counts (integers).")
+            return "X"
         return f"layers/{layer}"
 
     def counts(self, rows: np.ndarray, cols: list[int], layer: str | None = "counts",
@@ -254,3 +267,31 @@ def compare_groups(df: pd.DataFrame, value: str, group: str, a: str, b: str) -> 
     if len(x) >= 3 and len(y) >= 3:
         res["p_mannwhitney"] = mannwhitneyu(x, y, alternative="two-sided").pvalue
     return res
+
+
+def annotate_obs(obs, meta_dir):
+    """Join brain region, subject and diagnosis from the CDE tables onto obs via the sample ID."""
+    meta_dir = Path(meta_dir)
+    def load(name):
+        p = meta_dir / f"{name}.csv"
+        return pd.read_csv(p) if p.exists() else None
+    def lookup(df, key, col, by):
+        if df is None or key not in df or col not in df:
+            return None
+        return by.map(df.drop_duplicates(key).set_index(key)[col])
+    o = obs.copy()
+    sample = o["sample"].astype(str).str.replace(r"_rep\d+$", "", regex=True)
+    pm, sa, su, cp = (load(n) for n in ("PMDBS", "SAMPLE", "SUBJECT", "CLINPATH"))
+    reg = lookup(pm, "ASAP_sample_id", "brain_region", sample)
+    if reg is not None:
+        o["brain_region"] = reg
+    subj = lookup(sa, "ASAP_sample_id", "ASAP_subject_id", sample)
+    if subj is not None:
+        o["ASAP_subject_id"] = subj
+        for df, cols in ((su, ("primary_diagnosis", "sex")),
+                         (cp, ("age_at_death", "duration_pmi", "path_braak_asyn"))):
+            for col in cols:
+                v = lookup(df, "ASAP_subject_id", col, subj)
+                if v is not None:
+                    o[col] = v
+    return o
